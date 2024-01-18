@@ -1,0 +1,4 @@
+        "MONGODB_PASSWORD": "w8NQntDt1RTrzst9",
+        "MONGODB_USER": "stackspotuser",
+        "MONGODB_DATABASE": "{{database_name}}",
+        "MONGODB_CONNECTION": "mongodb://{USER}:{PASSWORD}@localhost:27017",

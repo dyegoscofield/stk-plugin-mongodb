@@ -1,0 +1,125 @@
+schema-version: v2
+kind: plugin
+metadata:
+  name: stk-plugin-mongodb
+  display-name: stk-plugin-mongodb
+  description: Este projeto visa desenvolver um plugin para otimizar o uso do MongoDB, focando em aumentar a eficiência em grandes volumes de dados e consultas complexas.
+  version: 1.0.0
+  picture: plugin.png
+spec:
+  type: app
+  compatibility:
+    - python
+    - dotnetcore
+  docs:
+    pt-br: docs/pt-br/docs.md
+    en-us: docs/en-us/docs.md
+  single-use: False
+  technologies: # Ref: https://docs.stackspot.com/create-use/create-content/yaml-files/plugin-yaml/#technologies-1
+    - Api
+  stk-projects-only: false
+  inputs:
+    - label: Nome do banco de dados MongoDB
+      name: database_name
+      default: stackspotdb
+      type: text
+    - label: Nome da collection MongoDB
+      name: collection_name
+      default: stackspot
+      type: text
+    - label: Nome usuario do banco de dados MongoDB
+      name: user_db
+      default: stackspotuser
+      type: text
+  hooks:
+#scripts
+  - type: run-script
+    trigger: before-render
+    script: ./scripts/ask-main-project.py
+#Package
+  - type: edit
+    trigger: after-render
+    path: src/{{entrypoint}}/{{entrypoint}}.csproj
+    changes:
+    - search:
+        string: "<PackageReference Include="
+        insert-after:
+          value: "\t\t<PackageReference Include=\"MediatR\" Version=\"12.0.1\" />\n"
+        when:
+          not-exists: 'MediatR'
+    - search:
+        string: "<PackageReference Include="
+        insert-after:
+          value: "\n\t\t<PackageReference Include=\"MongoDB.Driver\" Version=\"2.19.1\"\
+            \ />\n"
+        when:
+          not-exists: 'MongoDB.Driver'
+    - search:
+        string: "<PackageReference Include="
+        insert-after:
+          value: "\n\t\t<PackageReference Include=\"ServiceStack.Core\" Version=\"\
+            6.8.0\" />\n"
+        when:
+          not-exists: 'ServiceStack.Core'
+#launchSettings
+  - type: edit
+    trigger: after-render
+    path: src/{{entrypoint}}/Properties/launchSettings.json
+    changes:
+    - search:
+        string: '"environmentVariables": {'
+        insert-after:
+          snippet: snippets/launch-settings.txt
+        when:
+          not-exists: '"MONGODB_CONNECTION": "mongodb://{USER}:{PASSWORD}@localhost:27017"'
+    - search:
+        string: '"environmentVariables": {'
+        insert-after:
+          value: "        \"MONGODB_COLLECTION_NAME\": \"\
+            {{collection_name}}\",\n"
+        when:
+          not-exists: '"MONGODB_COLLECTION_NAME": "{{collection_name}}",'
+#Program.cs
+  - type: edit
+    trigger: after-render
+    path: src/{{entrypoint}}/Program.cs
+    changes:
+    - insert:
+        line: 0
+        value: "using System.Reflection;\n"
+        when:
+          not-exists: "using System.Reflection;"
+    - insert:
+        line: 0
+        value: "using {{entrypoint}}.Infrastructure;\n"
+        when:
+          not-exists: "using {{entrypoint}}.Infrastructure"
+    - search:
+        string: 'var app = builder.Build();'
+        insert-before:
+          value: "builder.Services.AddInfrastructure();\n\n"
+        when:
+          not-exists: 'builder.Services.AddInfrastructure();'
+    - search:
+        string: 'var app = builder.Build();'
+        insert-before:
+          value: "builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(Assembly.GetExecutingAssembly()));\n\
+            \n"
+        when:
+          not-exists: 'builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(Assembly.GetExecutingAssembly()));'
+#Docker Compose
+  - type: edit
+    trigger: after-render
+    path: docker-compose.yaml
+    changes:
+    - insert:
+        line: 0
+        snippet: snippets/docker-compose-services.txt
+        when:
+          not-exists: "services:"
+    - search:
+        string: 'services:'
+        insert-after:
+          snippet: snippets/docker-compose-services-mongo.txt
+        when:
+          not-exists: "mongo:"
